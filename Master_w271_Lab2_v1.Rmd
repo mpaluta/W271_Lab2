@@ -1,6 +1,6 @@
 ---
-title: "Mark Paluta, Carlos Sancini, Krysten_Thompson (W271): Lab 2"
-author: "Professor Jeffrey Yau"
+title: "Statistical Methods for Discrete Response, Time Series, and Panel Data (W271): Lab 2"
+author: "Mark Paluta, Carlos Sancini, & Krysten_Thompson"
 output: 
   pdf_document:
   toc: true
@@ -21,7 +21,7 @@ geometry: margin=1in
 
 Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin's *"Analysis of Categorical Data with R"*.  Here is the background of this analysis, taken as an excerpt from this question:
 
-In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item—breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
+In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item-breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
 
 ```{r, warning=FALSE, message=FALSE}
 # Tidy up the code for rendering pdf or html document
@@ -54,29 +54,26 @@ library(nnet)
 ```
 
 ```{r}
-df <- read.csv("cereal_dillons.csv")
+df_unscaled <- read.csv("cereal_dillons.csv")
 #head(df)
 ```
 
 ```{r}
-str(df)
+str(df_unscaled)
 #describe(df)
 ```
 
 
 a. The explanatory variables need to be reformatted before proceeding further. 
     - First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. 
-    
-```{r}
-# Mark/Carlos - this was the way I started
-#df1 <- df[c('size_g', 'sugar_g', 'fat_g', 'sodium_mg')] / df$size_g
-```
   
 ```{r}
-df$sugar_g = df$sugar_g/df$size_g
-df$fat_g = df$fat_g/df$size_g
-df$sodium_mg = df$sodium_mg/df$size_g
-df$Shelf = as.factor(df$Shelf)
+# Could maybe roll these three lines up with an apply function later for elegance
+df_unscaled$sugar_g = df_unscaled$sugar_g/df_unscaled$size_g
+df_unscaled$fat_g = df_unscaled$fat_g/df_unscaled$size_g
+df_unscaled$sodium_mg = df_unscaled$sodium_mg/df_unscaled$size_g
+
+df_unscaled$Shelf = as.factor(df_unscaled$Shelf)
 ```
   
     - Second, rescale each variable to be within 0 and 1.
@@ -86,8 +83,8 @@ normalize = function(x) {
   (x - min(x))/(max(x) - min(x))
 }
 
-df = cbind(df[, 1:4], apply(df[,5:7], 2, normalize))
-head(df) #confirmed normalization worked
+df = cbind(df_unscaled[, 1:4], apply(df_unscaled[,5:7], 2, normalize))
+head(df) #confirm normalization worked
 ```
 
 
@@ -122,6 +119,8 @@ ggplot(df, aes(Shelf, sodium_mg)) +
 
 ```{r}
 library(GGally) #Note this is a new library that we may have to justify
+# [Mark]: We could ask Jeff but I think we are okay here.
+#         I think his warning is more for statistics packages than visualization. 
 
 df$Shelf <- as.factor(df$Shelf)
 ggparcoord(df, columns = 5:7, groupColumn='Shelf', scale = 'globalminmax')
@@ -136,28 +135,23 @@ c. The response has values of $1, 2, 3,$ and $4$. Under what setting would it be
 d. Estimate a **multinomial regression model with linear forms of the sugar, fat, and sodium variables**. Perform **LRTs** to examine the importance of each explanatory variable.
 
 ```{r}
-# Carlos/Mark - I transformed Shelf back to Int bc I didn't think 'factor' type
-#would work for lin reg
-df$Shelf <- as.integer(df$Shelf)
+model <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data=df, trace=F)
+# (trace=F is suppressing convergence output for now)
+summary(model)
 ```
-
-```{r}
-fit.lm <- lm(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data=df)
-summary(fit.lm)
-```
-
-```{r}
-
-```
-
-```{r}
-
-```
-
 
 e. Show that there are no significant interactions among the explanatory variables (including an interaction among all three variables).
 
-f. Kellogg’s Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+f. Kellogg's Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+
+```{r}
+new_data = data.frame(sugar_g = 12/28/max(df_unscaled$sugar_g),
+                      fat_g = .5/28/max(df_unscaled$fat_g),
+                      sodium_mg = 130/28/max(df_unscaled$sodium_mg))
+pi.hat = predict(object = model, newdata = new_data, type = "probs")
+round(pi.hat,3)
+```
+The probability of being found on each shelf can be seen in the table above. Apple Jacks would most likely be found on Shelf 2 with nearly 50% probability.
 
 g. Construct a plot similar to **Figure 3.3** where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
 
