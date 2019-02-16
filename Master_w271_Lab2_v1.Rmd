@@ -1,0 +1,172 @@
+---
+title: "Mark Paluta, Carlos Sancini, Krysten_Thompson (W271): Lab 2"
+author: "Professor Jeffrey Yau"
+output: 
+  pdf_document:
+  toc: true
+  number_sections: true
+fontsize: 11pt
+geometry: margin=1in
+---
+
+    
+      *  **No need to include introduction, data examination, EDA, and conclusion sections.**
+
+      * Since this question has **part a to h**, please write down each of the questions in your report so that we can easily follow your answers. 
+
+* Students are expected to act with regards to UC Berkeley Academic Integrity.
+
+\newpage
+# Strategic Placement of Products in Grocery Stores
+
+Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin's *"Analysis of Categorical Data with R"*.  Here is the background of this analysis, taken as an excerpt from this question:
+
+In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item—breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
+
+```{r, warning=FALSE, message=FALSE}
+# Tidy up the code for rendering pdf or html document
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
+# Clean up the working environment
+rm(list = ls())
+
+# Load Libraries
+library(dplyr)
+library(car)
+library(Hmisc)
+library(skimr)
+library(ggplot2)
+
+#library(stargazer)
+library(gmodels) # For cross tabulation (SAS and SPSS style)
+
+#library(MASS) # will use the polr function
+#library(mcprofile)
+library(vcd)
+library(nnet)
+
+## one at a time, table apply, pared, and public
+#lapply(df[, c("apply", "pared", "public")], table)
+
+## three way cross tabs (xtabs) and flatten the table
+#ftable(xtabs(~ public + apply + pared, data = df))
+```
+
+```{r}
+df <- read.csv("cereal_dillons.csv")
+#head(df)
+```
+
+```{r}
+str(df)
+#describe(df)
+```
+
+
+a. The explanatory variables need to be reformatted before proceeding further. 
+    - First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. 
+    
+```{r}
+# Mark/Carlos - this was the way I started
+#df1 <- df[c('size_g', 'sugar_g', 'fat_g', 'sodium_mg')] / df$size_g
+```
+  
+```{r}
+df$sugar_g = df$sugar_g/df$size_g
+df$fat_g = df$fat_g/df$size_g
+df$sodium_mg = df$sodium_mg/df$size_g
+df$Shelf = as.factor(df$Shelf)
+```
+  
+    - Second, rescale each variable to be within 0 and 1.
+```{r}
+
+normalize = function(x) {
+  (x - min(x))/(max(x) - min(x))
+}
+
+df = cbind(df[, 1:4], apply(df[,5:7], 2, normalize))
+head(df) #confirmed normalization worked
+```
+
+
+b. Construct side-by-side box plots with dot plots overlaid for each of the explanatory variables. 
+
+```{r}
+ggplot(df, aes(Shelf, sugar_g)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Sugar") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Sugar by Shelf") 
+
+ggplot(df, aes(Shelf, fat_g)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Fat") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Fat by Shelf") 
+
+ggplot(df, aes(Shelf, sodium_mg)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Sodium") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Sodium by Shelf") 
+
+```
+
+
+    - Also, construct a **parallel coordinates plot** for the explanatory variables and the shelf number. Discuss if possible content differences exist among the shelves.
+
+```{r}
+library(GGally) #Note this is a new library that we may have to justify
+
+df$Shelf <- as.factor(df$Shelf)
+ggparcoord(df, columns = 5:7, groupColumn='Shelf', scale = 'globalminmax')
+```
+
+
+c. The response has values of $1, 2, 3,$ and $4$. Under what setting would it be desirable to take into account ordinality. Do you think that this setting occurs here?
+
+**DRAFT -- If someone is analyzing where the placement of cereals labeled high-sugar or high-fat relative to the eye-level of the shopper is, labeling 'Shelf' and making it ordinal would be more useful in the analysis. It's not possible to tell whether Shelf 1 is the top shelf or bottom shelf when the shelves are numeric.**
+
+
+d. Estimate a **multinomial regression model with linear forms of the sugar, fat, and sodium variables**. Perform **LRTs** to examine the importance of each explanatory variable.
+
+```{r}
+# Carlos/Mark - I transformed Shelf back to Int bc I didn't think 'factor' type
+#would work for lin reg
+df$Shelf <- as.integer(df$Shelf)
+```
+
+```{r}
+fit.lm <- lm(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data=df)
+summary(fit.lm)
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+e. Show that there are no significant interactions among the explanatory variables (including an interaction among all three variables).
+
+f. Kellogg’s Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+
+g. Construct a plot similar to **Figure 3.3** where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
+
+h. Estimate odds ratios and calculate corresponding confidence intervals for each explanatory variable. Relate your interpretations back to the plots constructed for this exercise.
+
+
+
+
+
+
+
+
