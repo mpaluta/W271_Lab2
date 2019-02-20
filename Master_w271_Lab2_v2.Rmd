@@ -1,0 +1,356 @@
+---
+title: "Mark Paluta, Carlos Sancini, Krysten_Thompson (W271): Lab 2"
+author: "Professor Jeffrey Yau"
+output: 
+  pdf_document:
+  toc: true
+  number_sections: true
+fontsize: 11pt
+geometry: margin=1in
+---
+
+    
+      *  **No need to include introduction, data examination, EDA, and conclusion sections.**
+
+      * Since this question has **part a to h**, please write down each of the questions in your report so that we can easily follow your answers. 
+
+* Students are expected to act with regards to UC Berkeley Academic Integrity.
+
+\newpage
+# Strategic Placement of Products in Grocery Stores
+
+Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin's *"Analysis of Categorical Data with R"*.  Here is the background of this analysis, taken as an excerpt from this question:
+
+In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item—breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
+
+```{r, warning=FALSE, message=FALSE}
+# Tidy up the code for rendering pdf or html document
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
+# Clean up the working environment
+rm(list = ls())
+
+# Load Libraries
+library(dplyr)
+library(car)
+library(Hmisc)
+library(skimr)
+library(ggplot2)
+
+#library(stargazer)
+library(gmodels) # For cross tabulation (SAS and SPSS style)
+
+#library(MASS) # will use the polr function
+#library(mcprofile)
+library(vcd)
+library(nnet)
+
+## one at a time, table apply, pared, and public
+#lapply(df[, c("apply", "pared", "public")], table)
+
+## three way cross tabs (xtabs) and flatten the table
+#ftable(xtabs(~ public + apply + pared, data = df))
+```
+
+```{r}
+df <- read.csv("cereal_dillons.csv")
+#head(df)
+```
+
+```{r}
+str(df)
+#describe(df)
+```
+
+
+a. The explanatory variables need to be reformatted before proceeding further. 
+    - First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. 
+    
+```{r}
+# Mark/Carlos - this was the way I started
+#df1 <- df[c('size_g', 'sugar_g', 'fat_g', 'sodium_mg')] / df$size_g
+```
+  
+```{r}
+df$sugar_g = df$sugar_g/df$size_g
+df$fat_g = df$fat_g/df$size_g
+df$sodium_mg = df$sodium_mg/df$size_g
+df$Shelf = as.factor(df$Shelf)
+```
+  
+    - Second, rescale each variable to be within 0 and 1.
+```{r}
+
+normalize = function(x) {
+  (x - min(x))/(max(x) - min(x))
+}
+
+df = cbind(df[, 1:4], apply(df[,5:7], 2, normalize))
+head(df) #confirmed normalization worked
+```
+
+
+b. Construct side-by-side box plots with dot plots overlaid for each of the explanatory variables. 
+
+```{r}
+ggplot(df, aes(Shelf, sugar_g)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Sugar") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Sugar by Shelf") 
+
+ggplot(df, aes(Shelf, fat_g)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Fat") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Fat by Shelf") 
+
+ggplot(df, aes(Shelf, sodium_mg)) + 
+  geom_boxplot(aes(fill = Shelf)) +
+  geom_jitter() +
+  ylab("Sodium") + 
+  xlab("Shelf") +
+  ggtitle("Cereal Sodium by Shelf") 
+
+```
+
+
+    - Also, construct a **parallel coordinates plot** for the explanatory variables and the shelf number. Discuss if possible content differences exist among the shelves.
+
+```{r}
+library(GGally) #This library is an extension of ggplot2 and has functions that
+#reduce complexity of combining geometric objects with transformed data; it was
+#recommended when researching parallel coordinates plots
+
+df$Shelf <- as.factor(df$Shelf)
+ggparcoord(df, columns = 5:7, groupColumn='Shelf', scale = 'globalminmax')
+```
+
+
+c. The response has values of $1, 2, 3,$ and $4$. Under what setting would it be desirable to take into account ordinality. Do you think that this setting occurs here?
+
+**If someone is analyzing the placement of cereals labeled high-sugar or high-fat relative to the eye-level of the shopper, labeling 'Shelf' and making it ordinal would be more useful in the analysis. It's not possible to tell whether Shelf 1 is the top shelf or bottom shelf when the shelves are numeric.**
+
+
+d. Estimate a **multinomial regression model with linear forms of the sugar, fat, and sodium variables**. Perform **LRTs** to examine the importance of each explanatory variable.
+
+**Multinomial Regression Formula**
+$$
+\hat{\pi_j} = \frac{exp(\beta_j0 + \beta_{j1} x_1 + \dots + \beta_{jp} x_p}{1 + \sum_{j=2}^{J} exp(\beta_j0 + \beta_{j1} x_1 + \dots + \beta_{jp} x_p)}
+$$
+**Liklihood Ratio Formula**
+\begin{align*}
+-2log(\Lambda) &= -2log\left( \frac{L(\hat{\mathbf{\beta}}^{(0)} | y_1, \dots, y_n)}{L(\hat{\mathbf{\beta}}^{(a)} | y_1, \dots, y_n)}
+\right) \\
+&= -2\sum y_i log\left( \frac{\hat{\pi}_i^{(0)}}{\hat{\pi}_i^{(a)}} \right) + (1 - y_i ) log\left( \frac{1- \hat{\pi}_i^{(0)}}{1- \hat{\pi}_i^{(a)}} \right)
+\end{align*}
+
+
+```{r}
+#Transformed Shelf back to Int for modeling
+df$Shelf <- as.integer(df$Shelf)
+```
+
+```{r}
+mod.fit <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data=df,
+                   epsilon = 0.0001, maxit = 1000, trace = F) #trace=F is suppressing convergence output for now)
+summary(mod.fit)
+round(coef(mod.fit), 2)
+```
+
+```{r}
+Anova(mod.fit)
+```
+
+**The model equations:**
+
+$log(\hat{\pi}_2/\hat{\pi}_1) = 6.90 + 2.69*sugar + 4.06 * fat - 17.49 * sodium$  
+$log(\hat{\pi}_3/\hat{\pi}_1) = 21.68 - 12.22*sugar - 0.56 * fat - 24.98 * sodium$  
+$log(\hat{\pi}_4/\hat{\pi}_1) = 21.29 - 11.39*sugar - 0.87 * fat - 24.67 * sodium$
+
+
+e. Show that there are no significant interactions among the explanatory variables (including an interaction among all three variables).
+
+```{r}
+# epsilon = 0.0001 and maxit = 1000 were set since some models were not converging
+model.H0 = multinom(
+  formula = Shelf ~ sugar_g + fat_g + sodium_mg, 
+  data=df, trace = F, epsilon = 0.0001, maxit = 1000)
+
+model.sugar.fat = multinom(
+  formula = Shelf ~ sugar_g + fat_g + sodium_mg + sugar_g:fat_g, 
+  data=df, trace = F, epsilon = 0.0001, maxit = 1000)
+
+model.sugar.sodium = multinom(
+  formula = Shelf ~ sugar_g + fat_g + sodium_mg + sugar_g:sodium_mg, 
+  data=df, trace = F, epsilon = 0.0001, maxit = 1000)
+
+model.fat.sodium = multinom(
+  formula = Shelf ~ sugar_g + fat_g + sodium_mg + fat_g:sodium_mg, 
+  data=df, trace = F, epsilon = 0.0001, maxit = 1000)
+
+model.sugar.fat.sodium = multinom(
+  formula = Shelf ~ sugar_g + fat_g + sodium_mg + sugar_g:fat_g:sodium_mg, 
+  data=df, trace = F, epsilon = 0.0001, maxit = 1000)
+
+# interacions significance test 
+print('Null vs Sugar:Fat')
+anova(model.H0, model.sugar.fat)
+
+print('Null vs Sugar:Sodium')
+anova(model.H0, model.sugar.sodium)
+
+print('Null vs Fat:Sodium')
+anova(model.H0, model.fat.sodium)
+
+print('Null vs Sugar:Fat:Sodium')
+anova(model.H0, model.sugar.fat.sodium)
+```
+
+**The LRT hypothesis tests for each of the interactions shows that none of them have low enough p-values to be considered statistically significant.**  
+
+f. Kellogg’s Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+
+```{r}
+df_unscaled <- read.csv("cereal_dillons.csv")
+
+new_data = data.frame(
+  sugar_g = 12/28/max(df_unscaled$sugar_g),
+  fat_g = .5/28/max(df_unscaled$fat_g),
+  sodium_mg = 130/28/max(df_unscaled$sodium_mg))
+pi.hat = predict(object = mod.fit, newdata = new_data, type = "probs")
+round(pi.hat*100,1)
+```
+
+g. Construct a plot similar to **Figure 3.3** where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
+
+```{r}
+
+#fat_mean <- mean(df_unscaled$fat_g)
+#sodium_mean <- mean(df_unscaled$sodium_mg)
+
+# Estimate model 
+mod.fit.sugar <- multinom(formula = Shelf ~ sugar_g, data = df)
+summary(mod.fit.sugar)
+```
+
+```{r}
+beta.hat <- coefficients(mod.fit.sugar)
+```
+
+
+
+
+```{r}
+# Create plotting area first to make sure get the whole region with respect to x-axis
+  
+curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
+                ylab = expression(hat(pi)), xlab = "Sugar (grams)",
+      xlim = c(min(df$sugar_g), max(df$sugar_g)), col = "black", lty = "solid",
+      lwd = 2, n = 40, type = "n",
+      panel.first = grid(col = "gray", lty = "dotted"))
+
+# Plot each pi_j
+#Shelf 1
+    curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
+      col = "black", lty = "solid", lwd = 2, n = 40, add = TRUE,
+      xlim = c(min(df$sugar_g[df$Shelf == "1"]), max(df$sugar_g[df$Shelf == "1"])))  
+
+# Shelf 2
+    curve(expr = exp(beta.hat[1,1] + beta.hat[1,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
+      col = "green", lty = "dotdash", lwd = 2, n = 40, add = TRUE,
+      xlim = c(min(df$sugar_g[df$Shelf == "2"]), max(df$sugar_g[df$Shelf == "2"])))  
+    
+#Shelf 3
+    curve(expr = exp(beta.hat[2,1] + beta.hat[2,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
+      col = "red", lty = "longdash", lwd = 2, n = 40, add = TRUE,
+      xlim = c(min(df$sugar_g[df$Shelf == "3"]), max(df$sugar_g[df$Shelf == "3"])))  
+
+# Shelf 4
+    curve(expr = exp(beta.hat[3,1] + beta.hat[3,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
+      col = "orange", lty = "dotdash", lwd = 2, n = 40, add = TRUE,
+      xlim = c(min(df$sugar_g[df$Shelf == "4"]), max(df$sugar_g[df$Shelf == "4"])))
+    
+    
+#Legend    
+legend(x = 1.4, y = 0.8, legend=c("Shelf 1", "Shelf 2", "Shelf 3", "Shelf 4"),
+       lty=c("solid","dotdash", "longdash","dotdash"),
+       col=c("black","green","red", "orange"), bty="n", lwd = c(2,2,2,2), seg.len = 4)
+    
+```
+
+```{r}
+
+```
+
+
+h. Estimate odds ratios and calculate corresponding confidence intervals for each explanatory variable. Relate your interpretations back to the plots constructed for this exercise.
+
+$$
+P(Y \le j) = \frac{exp(\beta_j0 + \beta_1 x_1 + \dots + \beta_K x_K)}{1 + exp(\beta_j0 + \beta_1 x_1 + \dots + \beta_K x_K)}
+$$
+
+
+```{r}
+sd.cereal <- apply(X = df[, -c(1,3:4)], MARGIN = 2, FUN = sd)
+
+c.value <- c(1, sd.cereal)
+round(c.value, 2)
+```
+
+```{r}
+b.hat2 <- coefficients(mod.fit)[1, 2:4]
+b.hat2
+```
+
+```{r}
+b.hat3 <- coefficients(mod.fit)[2, 2:4]
+b.hat3
+```
+
+```{r}
+b.hat4 <- coefficients(mod.fit)[3, 2:4]
+b.hat4
+```
+
+
+```{r}
+length(c.value)
+length(b.hat2)
+```
+
+```{r}
+#Shelf 2 vs Shelf 1
+round(exp(c.value*b.hat2), 2)
+round(1/exp(c.value*b.hat2), 2)
+```
+
+```{r}
+#Shelf 3 vs Shelf 1
+round(exp(c.value*b.hat3), 2)
+round(1/exp(c.value*b.hat3), 2)
+```
+
+```{r}
+#Shelf 4 vs Shelf 1
+round(exp(c.value*b.hat4), 2)
+round(1/exp(c.value*b.hat4), 2)
+```
+
+
+```{r}
+conf.int <- confint(object = mod.fit, level = 0.95)
+conf.int
+```
+
+
+
+
+
+
+
+
+
