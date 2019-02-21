@@ -21,7 +21,7 @@ geometry: margin=1in
 
 Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin's *"Analysis of Categorical Data with R"*.  Here is the background of this analysis, taken as an excerpt from this question:
 
-In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item—breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
+In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item-breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
 
 ```{r, warning=FALSE, message=FALSE}
 # Tidy up the code for rendering pdf or html document
@@ -66,11 +66,6 @@ str(df)
 
 a. The explanatory variables need to be reformatted before proceeding further. 
     - First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. 
-    
-```{r}
-# Mark/Carlos - this was the way I started
-#df1 <- df[c('size_g', 'sugar_g', 'fat_g', 'sodium_mg')] / df$size_g
-```
   
 ```{r}
 df$sugar_g = df$sugar_g/df$size_g
@@ -212,7 +207,7 @@ anova(model.H0, model.sugar.fat.sodium)
 
 **The LRT hypothesis tests for each of the interactions shows that none of them have low enough p-values to be considered statistically significant.**  
 
-f. Kellogg’s Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
+f. Kellogg's Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
 
 ```{r}
 df_unscaled <- read.csv("cereal_dillons.csv")
@@ -228,64 +223,49 @@ round(pi.hat*100,1)
 g. Construct a plot similar to **Figure 3.3** where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
 
 ```{r}
-
-#fat_mean <- mean(df_unscaled$fat_g)
-#sodium_mean <- mean(df_unscaled$sodium_mg)
+fat_mean <- mean(df$fat_g)
+sodium_mean <- mean(df$sodium_mg)
 
 # Estimate model 
-mod.fit.sugar <- multinom(formula = Shelf ~ sugar_g, data = df)
-summary(mod.fit.sugar)
-```
-
-```{r}
+mod.fit.sugar <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data = df, trace=F) # suppressing convergence output for now
 beta.hat <- coefficients(mod.fit.sugar)
-```
-
-
-
-
-```{r}
-# Create plotting area first to make sure get the whole region with respect to x-axis
-  
-curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
-                ylab = expression(hat(pi)), xlab = "Sugar (grams)",
-      xlim = c(min(df$sugar_g), max(df$sugar_g)), col = "black", lty = "solid",
-      lwd = 2, n = 40, type = "n",
-      panel.first = grid(col = "gray", lty = "dotted"))
 
 # Plot each pi_j
 #Shelf 1
-    curve(expr = 1/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
-      col = "black", lty = "solid", lwd = 2, n = 40, add = TRUE,
-      xlim = c(min(df$sugar_g[df$Shelf == "1"]), max(df$sugar_g[df$Shelf == "1"])))  
+curve(expr = 1/
+        (1 + exp(beta.hat[1,1] + beta.hat[1,2]*x + beta.hat[1,3]*fat_mean + beta.hat[1,4]*sodium_mean) +
+           exp(beta.hat[2,1] + beta.hat[2,2]*x + beta.hat[2,3]*fat_mean + beta.hat[2,4]*sodium_mean) +
+           exp(beta.hat[3,1] + beta.hat[3,2]*x + beta.hat[3,3]*fat_mean + beta.hat[3,4]*sodium_mean)),
+      col = "black", lty = "solid", lwd = 2, n = 40,
+      xlim = c(min(df$sugar_g), max(df$sugar_g)), ylim=c(0,1), xlab = "Sugar (normalized)", 
+      ylab = expression(hat(pi)), panel.first = grid(col = "gray", lty = "dotted"))  
 
 # Shelf 2
-    curve(expr = exp(beta.hat[1,1] + beta.hat[1,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
-      col = "green", lty = "dotdash", lwd = 2, n = 40, add = TRUE,
-      xlim = c(min(df$sugar_g[df$Shelf == "2"]), max(df$sugar_g[df$Shelf == "2"])))  
+curve(expr = exp(beta.hat[1,1] + beta.hat[1,2]*x + beta.hat[1,3]*fat_mean + beta.hat[1,4]*sodium_mean)/
+        (1 + exp(beta.hat[1,1] + beta.hat[1,2]*x + beta.hat[1,3]*fat_mean + beta.hat[1,4]*sodium_mean) + 
+               exp(beta.hat[2,1] + beta.hat[2,2]*x + beta.hat[2,3]*fat_mean + beta.hat[2,4]*sodium_mean) + 
+               exp(beta.hat[3,1] + beta.hat[3,2]*x + beta.hat[3,3]*fat_mean + beta.hat[3,4]*sodium_mean)),
+      col = "green", lty = "dotdash", lwd = 2, n = 40, add = TRUE)  
     
 #Shelf 3
-    curve(expr = exp(beta.hat[2,1] + beta.hat[2,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
-      col = "red", lty = "longdash", lwd = 2, n = 40, add = TRUE,
-      xlim = c(min(df$sugar_g[df$Shelf == "3"]), max(df$sugar_g[df$Shelf == "3"])))  
+curve(expr = exp(beta.hat[2,1] + beta.hat[2,2]*x + beta.hat[2,3]*fat_mean + beta.hat[2,4]*sodium_mean)/
+        (1 + exp(beta.hat[1,1] + beta.hat[1,2]*x + beta.hat[1,3]*fat_mean + beta.hat[1,4]*sodium_mean) +
+           exp(beta.hat[2,1] + beta.hat[2,2]*x + beta.hat[2,3]*fat_mean + beta.hat[2,4]*sodium_mean) +
+           exp(beta.hat[3,1] + beta.hat[3,2]*x + beta.hat[3,3]*fat_mean + beta.hat[3,4]*sodium_mean)),
+      col = "red", lty = "longdash", lwd = 2, n = 40, add = TRUE)  
 
 # Shelf 4
-    curve(expr = exp(beta.hat[3,1] + beta.hat[3,2]*x)/(1 + exp(beta.hat[1,1] + beta.hat[1,2]*x) + exp(beta.hat[2,1] + beta.hat[2,2]*x) + exp(beta.hat[3,1] + beta.hat[3,2]*x)),
-      col = "orange", lty = "dotdash", lwd = 2, n = 40, add = TRUE,
-      xlim = c(min(df$sugar_g[df$Shelf == "4"]), max(df$sugar_g[df$Shelf == "4"])))
-    
+curve(expr = exp(beta.hat[3,1] + beta.hat[3,2]*x + beta.hat[3,3]*fat_mean + beta.hat[3,4]*sodium_mean)/
+        (1 + exp(beta.hat[1,1] + beta.hat[1,2]*x+ beta.hat[1,3]*fat_mean + beta.hat[1,4]*sodium_mean) +
+           exp(beta.hat[2,1] + beta.hat[2,2]*x + beta.hat[2,3]*fat_mean + beta.hat[2,4]*sodium_mean) +
+           exp(beta.hat[3,1] + beta.hat[3,2]*x+ beta.hat[3,3]*fat_mean + beta.hat[3,4]*sodium_mean)),
+      col = "orange", lty = "dotdash", lwd = 2, n = 40, add = TRUE)
     
 #Legend    
-legend(x = 1.4, y = 0.8, legend=c("Shelf 1", "Shelf 2", "Shelf 3", "Shelf 4"),
+legend(x = 0, y = 1, legend=c("Shelf 1", "Shelf 2", "Shelf 3", "Shelf 4"),
        lty=c("solid","dotdash", "longdash","dotdash"),
-       col=c("black","green","red", "orange"), bty="n", lwd = c(2,2,2,2), seg.len = 4)
-    
+       col=c("black","green","red", "orange"), lwd = c(2,2,2,2), seg.len = 4)
 ```
-
-```{r}
-
-```
-
 
 h. Estimate odds ratios and calculate corresponding confidence intervals for each explanatory variable. Relate your interpretations back to the plots constructed for this exercise.
 
