@@ -127,8 +127,7 @@ ggparcoord(df, columns = 5:7, groupColumn='Shelf', scale = 'globalminmax')
 
 c. The response has values of $1, 2, 3,$ and $4$. Under what setting would it be desirable to take into account ordinality. Do you think that this setting occurs here?
 
-**If someone is analyzing the placement of cereals labeled high-sugar or high-fat relative to the eye-level of the shopper, labeling 'Shelf' and making it ordinal would be more useful in the analysis. It's not possible to tell whether Shelf 1 is the top shelf or bottom shelf when the shelves are numeric.**
-
+Ordinality of the dependent variable is a good data model when we feel confident in a proportional odds model. Given our knowledge of grocery store marketing strategy, we tend to think a proportional odds model is not a good model. Desirability of shelves may not vary predictably from shelf to shelf. There may be "sweet spots", depending on the type of cereal. For example, let's say that the average child's height is at shelf 2. Knowing that there is more sugar in a cereal (all else being equal), may mean a large jump in cumulative odds at shelf 2 but rather small jumps adding in shelves 3 & 4. We are concerned this may lead to a violation of proportional odds that will cause us to have a less useful model than simply treating the shelves as categorical data.
 
 d. Estimate a **multinomial regression model with linear forms of the sugar, fat, and sodium variables**. Perform **LRTs** to examine the importance of each explanatory variable.
 
@@ -269,68 +268,26 @@ legend(x = 0, y = 1, legend=c("Shelf 1", "Shelf 2", "Shelf 3", "Shelf 4"),
 
 h. Estimate odds ratios and calculate corresponding confidence intervals for each explanatory variable. Relate your interpretations back to the plots constructed for this exercise.
 
-$$
-P(Y \le j) = \frac{exp(\beta_j0 + \beta_1 x_1 + \dots + \beta_K x_K)}{1 + exp(\beta_j0 + \beta_1 x_1 + \dots + \beta_K x_K)}
-$$
-
-
 ```{r}
+# Use one standard deviation as c values for interpretability
 sd.cereal <- apply(X = df[, -c(1,3:4)], MARGIN = 2, FUN = sd)
-
 c.value <- c(1, sd.cereal)
 round(c.value, 2)
 ```
 
 ```{r}
-b.hat2 <- coefficients(mod.fit)[1, 2:4]
-b.hat2
-```
-
-```{r}
-b.hat3 <- coefficients(mod.fit)[2, 2:4]
-b.hat3
-```
-
-```{r}
-b.hat4 <- coefficients(mod.fit)[3, 2:4]
-b.hat4
-```
-
-
-```{r}
-length(c.value)
-length(b.hat2)
-```
-
-```{r}
-#Shelf 2 vs Shelf 1
-round(exp(c.value*b.hat2), 2)
-round(1/exp(c.value*b.hat2), 2)
-```
-
-```{r}
-#Shelf 3 vs Shelf 1
-round(exp(c.value*b.hat3), 2)
-round(1/exp(c.value*b.hat3), 2)
-```
-
-```{r}
-#Shelf 4 vs Shelf 1
-round(exp(c.value*b.hat4), 2)
-round(1/exp(c.value*b.hat4), 2)
-```
-
-
-```{r}
+# Store Wald confidence intervals
 conf.int <- confint(object = mod.fit, level = 0.95)
-conf.int
+
+# Odds Ratio Confidence Interval - Shelf 2 to Shelf 1
+round(exp(conf.int[2:4,,1]*c.value[3]),2)
+```
+```{r}
+# Odds Ratio Confidence Interval - Shelf 3 to Shelf 1
+round(exp(conf.int[2:4,,2]*c.value[4]),2)
 ```
 
-
-
-
-
-
-
-
-
+```{r}
+# Odds Ratio Confidence Interval - Shelf 4 to Shelf 1
+round(exp(conf.int[2:4,,3]*c.value[5]),2)
+```
