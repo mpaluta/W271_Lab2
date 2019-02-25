@@ -35,13 +35,11 @@ library(nnet)
 ```
 
 ```{r}
-df <- read.csv("cereal_dillons.csv")
-#head(df)
+df_unscaled <- read.csv("cereal_dillons.csv")
 ```
 
 ```{r}
-str(df)
-#describe(df)
+str(df_unscaled)
 ```
 
 
@@ -49,10 +47,11 @@ a. The explanatory variables need to be reformatted before proceeding further.
     - First, divide each explanatory variable by its serving size to account for the different serving sizes among the cereals. 
   
 ```{r}
-df$sugar_g = df$sugar_g/df$size_g
-df$fat_g = df$fat_g/df$size_g
-df$sodium_mg = df$sodium_mg/df$size_g
-df$Shelf = as.factor(df$Shelf)
+df_size_scaled = df_unscaled
+df_size_scaled$sugar_g = df_size_scaled$sugar_g/df_unscaled$size_g
+df_size_scaled$fat_g = df_size_scaled$fat_g/df_unscaled$size_g
+df_size_scaled$sodium_mg = df_size_scaled$sodium_mg/df_unscaled$size_g
+df_size_scaled$Shelf = as.factor(df_size_scaled$Shelf)
 ```
   
     - Second, rescale each variable to be within 0 and 1.
@@ -62,6 +61,7 @@ normalize = function(x) {
   (x - min(x))/(max(x) - min(x))
 }
 
+df = df_size_scaled
 df = cbind(df[, 1:4], apply(df[,5:7], 2, normalize))
 head(df) #confirmed normalization worked
 ```
@@ -69,7 +69,7 @@ head(df) #confirmed normalization worked
 
 b. Construct side-by-side box plots with dot plots overlaid for each of the explanatory variables. 
 
-```{r}
+```{r fig.height=4, fig.width=6}
 ggplot(df, aes(Shelf, sugar_g)) + 
   geom_boxplot(aes(fill = Shelf)) +
   geom_jitter() +
@@ -140,7 +140,7 @@ df$Shelf <- as.integer(df$Shelf)
 
 ```{r}
 mod.fit <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data=df,
-                   epsilon = 0.0001, maxit = 1000, trace = F) #trace=F is suppressing convergence output for now)
+                   epsilon = 0.0001, maxit = 1000, trace = F)
 summary(mod.fit)
 round(coef(mod.fit), 2)
 ```
@@ -199,14 +199,12 @@ anova(model.H0, model.sugar.fat.sodium)
 f. Kellogg's Apple Jacks (http://www.applejacks.com) is a cereal marketed toward children. For a serving size of $28$ grams, its sugar content is $12$ grams, fat content is $0.5$ grams, and sodium content is $130$ milligrams. Estimate the shelf probabilities for Apple Jacks.
 
 ```{r}
-df_unscaled <- read.csv("cereal_dillons.csv")
-
 new_data = data.frame(
-  sugar_g = 12/28/max(df_unscaled$sugar_g),
-  fat_g = .5/28/max(df_unscaled$fat_g),
-  sodium_mg = 130/28/max(df_unscaled$sodium_mg))
+  sugar_g = 12/28/max(df_size_scaled$sugar_g),
+  fat_g = .5/28/max(df_size_scaled$fat_g),
+  sodium_mg = 130/28/max(df_size_scaled$sodium_mg))
 pi.hat = predict(object = mod.fit, newdata = new_data, type = "probs")
-round(pi.hat*100,1)
+round(pi.hat,3)
 ```
 
 g. Construct a plot similar to **Figure 3.3** where the estimated probability for a shelf is on the *y-axis* and the sugar content is on the *x-axis*. Use the mean overall fat and sodium content as the corresponding variable values in the model. Interpret the plot with respect to sugar content.
@@ -216,7 +214,7 @@ fat_mean <- mean(df$fat_g)
 sodium_mean <- mean(df$sodium_mg)
 
 # Estimate model 
-mod.fit.sugar <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data = df, trace=F) # suppressing convergence output for now
+mod.fit.sugar <- multinom(formula = Shelf ~ sugar_g + fat_g + sodium_mg, data = df, trace=F)
 beta.hat <- coefficients(mod.fit.sugar)
 
 # Plot each pi_j
