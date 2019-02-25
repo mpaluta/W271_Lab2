@@ -1,5 +1,5 @@
 ---
-title: "Mark Paluta, Carlos Sancini, Krysten_Thompson (W271): Lab 2"
+title: "Mark Paluta, Carlos Sancini, Krysten Thompson (W271): Lab 2"
 author: "Professor Jeffrey Yau"
 output: 
   pdf_document:
@@ -9,14 +9,6 @@ fontsize: 11pt
 geometry: margin=1in
 ---
 
-    
-      *  **No need to include introduction, data examination, EDA, and conclusion sections.**
-
-      * Since this question has **part a to h**, please write down each of the questions in your report so that we can easily follow your answers. 
-
-* Students are expected to act with regards to UC Berkeley Academic Integrity.
-
-\newpage
 # Strategic Placement of Products in Grocery Stores
 
 Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin's *"Analysis of Categorical Data with R"*.  Here is the background of this analysis, taken as an excerpt from this question:
@@ -24,11 +16,10 @@ Answer **Question 12 of chapter 3 (on page 189 and 190)** of Bilder and Loughin'
 In order to maximize sales, items within grocery stores are strategically placed to draw customer attention. This exercise examines one type of item-breakfast cereal. Typically, in large grocery stores, boxes of cereal are placed on sets of shelves located on one side of the aisle. By placing particular boxes of cereals on specific shelves, grocery stores may better attract customers to them. To investigate this further, a random sample of size 10 was taken from each of four shelves at a Dillons grocery store in Manhattan, KS. These data are given in the **cereal_dillons.csv** file. The response variable is the shelf number, which is numbered from bottom (1) to top (4), and the explanatory variables are the sugar, fat, and sodium content of the cereals.
 
 ```{r, warning=FALSE, message=FALSE}
-# Tidy up the code for rendering pdf or html document
+
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 
-# Clean up the working environment
 rm(list = ls())
 
 # Load Libraries
@@ -37,20 +28,10 @@ library(car)
 library(Hmisc)
 library(skimr)
 library(ggplot2)
-
-#library(stargazer)
-library(gmodels) # For cross tabulation (SAS and SPSS style)
-
-#library(MASS) # will use the polr function
-#library(mcprofile)
+library(gmodels) 
 library(vcd)
 library(nnet)
 
-## one at a time, table apply, pared, and public
-#lapply(df[, c("apply", "pared", "public")], table)
-
-## three way cross tabs (xtabs) and flatten the table
-#ftable(xtabs(~ public + apply + pared, data = df))
 ```
 
 ```{r}
@@ -116,13 +97,22 @@ ggplot(df, aes(Shelf, sodium_mg)) +
     - Also, construct a **parallel coordinates plot** for the explanatory variables and the shelf number. Discuss if possible content differences exist among the shelves.
 
 ```{r}
-library(GGally) #This library is an extension of ggplot2 and has functions that
+#This library is an extension of ggplot2 and has functions that
 #reduce complexity of combining geometric objects with transformed data; it was
 #recommended when researching parallel coordinates plots
 
+library(GGally, quietly = TRUE, warn.conflicts = FALSE)
 df$Shelf <- as.factor(df$Shelf)
 ggparcoord(df, columns = 5:7, groupColumn='Shelf', scale = 'globalminmax')
 ```
+
+**Based on the parallel coordinates plot, Shelf 1 appears to contain cereals with low levels of fat, high levels of sodium, and a mix of sugar levels (some high and some low).**
+
+**Shelf 2 contains cereals with some of the highest levels of sugar, moderate to high levels of fat, and a mix of sodium levels (some high, some low). This appears to be the shelf focused on children.**
+
+**Shelf 3 contains cereals that span both low and high levels of sugar, fat, and sodium. This shelf could target adults who monitor their intake of any of these ingredients.**
+
+**Shelf 4 trends similarly to Shelf 3, with cereals spanning the range of low to high for all three ingredients.**
 
 
 c. The response has values of $1, 2, 3,$ and $4$. Under what setting would it be desirable to take into account ordinality. Do you think that this setting occurs here?
